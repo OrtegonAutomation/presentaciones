@@ -1,0 +1,3187 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Migración TimeNator V2 → TimeNator V3 | Strategy</title>
+    <style>
+      /* STYLES:START */
+      @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@300;400;500;600;700&display=swap");
+
+      :root {
+        color-scheme: light;
+        --strategy-blue: #164dc8;
+        --strategy-blue-deep: #0f3aa4;
+        --strategy-lime: #c1ef10;
+        --strategy-lime-deep: #9ad400;
+        --accent-teal: #2bd1c5;
+        --accent-orange: #ff9a3d;
+        --ink-900: #111111;
+        --ink-700: #2f2f2f;
+        --ink-500: #6a6a6a;
+        --paper: #ffffff;
+        --paper-soft: #f5f5f5;
+        --shadow-2: 0 24px 60px rgba(15, 58, 164, 0.18);
+
+        --danger: #d92c2c;
+        --success: #0d9b6c;
+        --warning: #b45309;
+
+        --radius: 22px;
+        --slide-w: min(1600px, 92vw);
+        --slide-h: min(900px, 88vh);
+        --header-h: 68px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background:
+          radial-gradient(
+            900px 500px at 20% 10%,
+            rgba(193, 239, 16, 0.22),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 520px at 80% 30%,
+            rgba(22, 77, 200, 0.18),
+            transparent 60%
+          ),
+          linear-gradient(180deg, #ffffff, var(--paper-soft));
+        color: var(--ink-900);
+        overflow: hidden;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.92em;
+        background: rgba(17, 17, 17, 0.06);
+        padding: 0.12em 0.35em;
+        border-radius: 8px;
+      }
+
+      /* Top bar */
+      .deck-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--header-h);
+        z-index: 200;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 18px;
+        background: rgba(15, 58, 164, 0.92);
+        border-bottom: 1px solid rgba(193, 239, 16, 0.28);
+        backdrop-filter: blur(10px);
+      }
+
+      .deck-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 240px;
+      }
+
+      .deck-logo {
+        height: 30px;
+        width: auto;
+        display: block;
+      }
+
+      .deck-divider {
+        width: 1px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .deck-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        color: var(--paper);
+      }
+
+      .deck-title strong {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .deck-title span {
+        font-weight: 700;
+        font-size: 14px;
+        line-height: 1.1;
+      }
+
+      .deck-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .deck-slide-title {
+        max-width: 42vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.84);
+      }
+
+      .deck-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(193, 239, 16, 0.38);
+        background: rgba(193, 239, 16, 0.14);
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .deck-chip i {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--strategy-lime);
+        box-shadow: 0 0 0 4px rgba(193, 239, 16, 0.16);
+      }
+
+      /* Deck */
+      .deck-container {
+        position: relative;
+        height: calc(100vh - var(--header-h));
+        width: 100%;
+        display: grid;
+        place-items: center;
+        padding: 16px 0 40px;
+        margin-top: var(--header-h);
+        perspective: 1100px;
+      }
+
+      /* Slides */
+      .slide {
+        position: absolute;
+        width: var(--slide-w);
+        height: var(--slide-h);
+        max-height: calc(100vh - var(--header-h) - 42px);
+        border-radius: var(--radius);
+        background: var(--paper);
+        box-shadow: var(--shadow-2);
+        padding: 34px 42px;
+        opacity: 0;
+        transform: translate3d(110px, 0, -120px) rotateY(-10deg);
+        transition: all 0.55s cubic-bezier(0.25, 1, 0.5, 1);
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .slide.active {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotateY(0);
+        pointer-events: auto;
+        z-index: 10;
+      }
+
+      .slide.prev {
+        opacity: 0;
+        transform: translate3d(-110px, 0, -120px) rotateY(10deg);
+      }
+
+      .slide-number {
+        position: absolute;
+        bottom: 18px;
+        right: 22px;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(17, 17, 17, 0.45);
+        font-weight: 800;
+      }
+
+      .slide-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(22, 77, 200, 0.08);
+        border: 1px solid rgba(22, 77, 200, 0.12);
+        color: var(--strategy-blue-deep);
+        font-weight: 700;
+        font-size: 13px;
+        width: fit-content;
+        margin-bottom: 14px;
+      }
+
+      .slide-tag::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--strategy-lime);
+        box-shadow: 0 0 0 4px rgba(193, 239, 16, 0.14);
+      }
+
+      h1 {
+        font-size: clamp(34px, 4.6vw, 62px);
+        line-height: 1.05;
+        margin: 0 0 14px;
+        letter-spacing: -0.02em;
+      }
+
+      h2 {
+        font-size: clamp(24px, 3.1vw, 38px);
+        line-height: 1.1;
+        margin: 0 0 10px;
+        color: var(--strategy-blue-deep);
+      }
+
+      h3 {
+        font-size: clamp(16px, 1.9vw, 20px);
+        margin: 0 0 18px;
+        color: var(--ink-700);
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0 0 14px;
+        color: var(--ink-700);
+        font-size: clamp(14px, 1.45vw, 18px);
+        line-height: 1.55;
+      }
+
+      ul,
+      ol {
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 12px;
+        flex: 1;
+        align-content: start;
+      }
+
+      li {
+        position: relative;
+        padding-left: 22px;
+        font-size: clamp(14px, 1.55vw, 18px);
+        line-height: 1.45;
+        color: var(--ink-700);
+        opacity: 0;
+        transform: translateY(14px);
+        transition: all 0.5s ease-out;
+      }
+
+      li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55em;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--strategy-lime);
+        box-shadow: 0 0 0 5px rgba(193, 239, 16, 0.16);
+      }
+
+      .slide.active li {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .slide.active li:nth-child(1) {
+        transition-delay: 0.06s;
+      }
+      .slide.active li:nth-child(2) {
+        transition-delay: 0.12s;
+      }
+      .slide.active li:nth-child(3) {
+        transition-delay: 0.18s;
+      }
+      .slide.active li:nth-child(4) {
+        transition-delay: 0.24s;
+      }
+      .slide.active li:nth-child(5) {
+        transition-delay: 0.3s;
+      }
+      .slide.active li:nth-child(6) {
+        transition-delay: 0.36s;
+      }
+
+      .hl-danger {
+        color: var(--danger);
+        font-weight: 800;
+      }
+      .hl-success {
+        color: var(--success);
+        font-weight: 800;
+      }
+      .hl-warn {
+        color: var(--warning);
+        font-weight: 800;
+      }
+      .muted {
+        color: var(--ink-500);
+      }
+
+      /* Notes (toggle with N) */
+      .notes {
+        margin-top: auto;
+        background: rgba(22, 77, 200, 0.06);
+        border: 1px solid rgba(22, 77, 200, 0.12);
+        border-left: 6px solid rgba(22, 77, 200, 0.35);
+        border-radius: 14px;
+        padding: 12px 14px;
+        font-size: 13px;
+        color: var(--ink-700);
+        display: none;
+      }
+
+      .show-notes .notes {
+        display: block;
+      }
+
+      .notes strong {
+        display: block;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--strategy-blue-deep);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      /* Components */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 22px;
+        flex: 1;
+        align-items: start;
+      }
+
+      .grid-2 > * {
+        min-width: 0;
+      }
+
+      .diagram {
+        border-radius: 18px;
+        padding: 14px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 12px;
+        align-items: center;
+        min-height: 360px;
+      }
+
+      .diagram-col {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+
+      .diagram-title {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--strategy-blue-deep);
+        font-size: 12px;
+      }
+
+      .diagram-stack {
+        display: grid;
+        gap: 8px;
+      }
+
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(245, 245, 245, 0.75);
+        font-weight: 800;
+        font-size: 13px;
+        color: var(--ink-700);
+      }
+
+      .node .icon {
+        width: 18px;
+        height: 18px;
+        color: var(--strategy-blue-deep);
+      }
+
+      .node--blue {
+        background: rgba(22, 77, 200, 0.08);
+        border-color: rgba(22, 77, 200, 0.16);
+      }
+
+      .node--lime {
+        background: rgba(193, 239, 16, 0.18);
+        border-color: rgba(193, 239, 16, 0.35);
+      }
+
+      .node--teal {
+        background: rgba(43, 209, 197, 0.16);
+        border-color: rgba(43, 209, 197, 0.35);
+      }
+
+      .node--warn {
+        background: rgba(255, 154, 61, 0.14);
+        border-color: rgba(255, 154, 61, 0.35);
+      }
+
+      .diagram-arrow {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        background: rgba(22, 77, 200, 0.1);
+        border: 1px solid rgba(22, 77, 200, 0.16);
+        display: grid;
+        place-items: center;
+        color: var(--strategy-blue-deep);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.12);
+      }
+
+      .diagram-arrow .icon {
+        width: 20px;
+        height: 20px;
+      }
+
+      .bars {
+        border-radius: 18px;
+        padding: 14px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .bars-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .bars-head strong {
+        font-size: 14px;
+        color: var(--strategy-blue-deep);
+      }
+
+      .bars-head span {
+        font-size: 12px;
+        color: rgba(17, 17, 17, 0.55);
+        font-weight: 700;
+      }
+
+      .spark {
+        width: 100%;
+        height: 170px;
+        display: block;
+      }
+
+      .spark text {
+        font-size: 10px;
+        fill: rgba(17, 17, 17, 0.55);
+        font-weight: 800;
+      }
+
+      .spark .grid {
+        stroke: rgba(17, 17, 17, 0.08);
+        stroke-width: 1;
+      }
+
+      .spark .line {
+        stroke: var(--accent-orange);
+        stroke-width: 3;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .spark .line2 {
+        stroke: var(--accent-teal);
+        stroke-width: 3;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .spark .area {
+        fill: rgba(255, 154, 61, 0.14);
+      }
+
+      .spark .dot {
+        fill: var(--strategy-lime);
+        stroke: rgba(255, 255, 255, 0.9);
+        stroke-width: 2;
+      }
+
+      .flow {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .flow-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+        color: var(--strategy-blue-deep);
+        background: rgba(22, 77, 200, 0.08);
+        border: 1px solid rgba(22, 77, 200, 0.14);
+        white-space: nowrap;
+      }
+
+      .flow-pill--lime {
+        background: rgba(193, 239, 16, 0.18);
+        border-color: rgba(193, 239, 16, 0.35);
+      }
+
+      .flow-pill--warn {
+        background: rgba(255, 154, 61, 0.14);
+        border-color: rgba(255, 154, 61, 0.35);
+      }
+
+      .flow-arrow {
+        width: 22px;
+        height: 22px;
+        color: rgba(17, 17, 17, 0.55);
+        flex: 0 0 auto;
+      }
+
+      .compare {
+        display: grid;
+        gap: 10px;
+      }
+
+      .compare-row {
+        display: grid;
+        grid-template-columns: 0.9fr 1.3fr;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .compare-label {
+        font-weight: 900;
+        font-size: 12px;
+        color: var(--ink-700);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .compare-bars {
+        display: grid;
+        gap: 8px;
+      }
+
+      .compare-bar {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .compare-name {
+        font-size: 11px;
+        font-weight: 900;
+        color: rgba(17, 17, 17, 0.55);
+      }
+
+      .bar-track.is-compact {
+        height: 10px;
+      }
+
+      .bar-fill--v2 {
+        background: linear-gradient(
+          90deg,
+          rgba(217, 44, 44, 0.9),
+          rgba(255, 154, 61, 0.9)
+        );
+      }
+
+      .bar-fill--v3 {
+        background: linear-gradient(90deg, var(--strategy-blue), var(--strategy-lime));
+      }
+
+      .matrix-card {
+        border-radius: 18px;
+        padding: 14px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .matrix {
+        width: 100%;
+        height: 320px;
+        display: block;
+      }
+
+      .matrix text {
+        font-size: 10px;
+        fill: rgba(17, 17, 17, 0.55);
+        font-weight: 800;
+      }
+
+      .matrix .grid {
+        stroke: rgba(17, 17, 17, 0.1);
+        stroke-width: 1;
+      }
+
+      .matrix .axis {
+        stroke: rgba(17, 17, 17, 0.22);
+        stroke-width: 1.5;
+      }
+
+      .matrix .dot {
+        fill: var(--strategy-lime);
+        stroke: rgba(15, 58, 164, 0.65);
+        stroke-width: 2;
+      }
+
+      .matrix .dot--warn {
+        fill: rgba(255, 154, 61, 0.95);
+      }
+
+      .matrix .dot--danger {
+        fill: rgba(217, 44, 44, 0.92);
+      }
+
+      .bar-row {
+        display: grid;
+        grid-template-columns: 1.15fr 2.2fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .bar-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 900;
+        font-size: 12px;
+        color: var(--ink-700);
+        min-width: 0;
+      }
+
+      .bar-label span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .bar-track {
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(17, 17, 17, 0.08);
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        width: 50%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--strategy-blue), var(--accent-teal));
+      }
+
+      .bar-fill--warn {
+        background: linear-gradient(90deg, var(--accent-orange), var(--strategy-lime));
+      }
+
+      .bar-value {
+        font-weight: 900;
+        font-size: 12px;
+        color: rgba(17, 17, 17, 0.55);
+      }
+
+      .timeline {
+        position: relative;
+        padding-left: 18px;
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: rgba(22, 77, 200, 0.18);
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        gap: 6px;
+      }
+
+      .step-dot {
+        position: absolute;
+        left: -1px;
+        top: 10px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: var(--strategy-lime);
+        box-shadow: 0 0 0 4px rgba(193, 239, 16, 0.18);
+      }
+
+      .step-card {
+        margin-left: 12px;
+        border-radius: 16px;
+        padding: 12px 12px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.06);
+      }
+
+      .step-card strong {
+        display: block;
+        color: var(--strategy-blue-deep);
+        font-weight: 900;
+        margin-bottom: 4px;
+      }
+
+      .step-card span {
+        display: block;
+        font-size: 13px;
+        color: var(--ink-700);
+        line-height: 1.4;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        flex: 1;
+        align-content: start;
+        margin-top: 10px;
+      }
+
+      .cards.cards--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .card {
+        border-radius: 18px;
+        padding: 14px 14px 16px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 17, 17, 0.1);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--ink-700);
+        font-weight: 800;
+        font-size: 12px;
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.06);
+      }
+
+      .chip .icon {
+        width: 16px;
+        height: 16px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        background: rgba(193, 239, 16, 0.18);
+        border: 1px solid rgba(193, 239, 16, 0.35);
+        color: var(--strategy-blue-deep);
+        margin-bottom: 10px;
+        width: fit-content;
+      }
+
+      .badge i {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--strategy-lime);
+        display: inline-block;
+      }
+
+      .badge svg {
+        width: 14px;
+        height: 14px;
+        color: var(--strategy-blue-deep);
+        flex: 0 0 auto;
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .icon--blue {
+        color: var(--strategy-blue);
+      }
+
+      .icon--lime {
+        color: var(--strategy-lime-deep);
+      }
+
+      .icon--teal {
+        color: var(--accent-teal);
+      }
+
+      .icon--warn {
+        color: var(--accent-orange);
+      }
+
+      .icon--danger {
+        color: var(--danger);
+      }
+
+      .icon--paper {
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .card h4 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        color: var(--strategy-blue-deep);
+        font-weight: 900;
+        letter-spacing: 0.01em;
+      }
+
+      .card p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--ink-700);
+        line-height: 1.45;
+      }
+
+      .table-wrap {
+        flex: 1;
+        overflow: auto;
+        border-radius: 16px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        margin-top: 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 860px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 12px 12px;
+        border-bottom: 1px solid rgba(17, 17, 17, 0.08);
+        vertical-align: top;
+      }
+
+      td .icon {
+        width: 14px;
+        height: 14px;
+        margin-right: 8px;
+        vertical-align: -3px;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--strategy-blue);
+        color: var(--paper);
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        z-index: 2;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(245, 245, 245, 0.7);
+      }
+
+      .callouts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        flex: 1;
+        margin-top: 10px;
+      }
+
+      .callout {
+        border-radius: 18px;
+        padding: 16px 16px 14px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+      }
+
+      .callout--warn {
+        background: rgba(255, 154, 61, 0.12);
+        border-left: 8px solid rgba(255, 154, 61, 0.9);
+      }
+
+      .callout--info {
+        background: rgba(43, 209, 197, 0.12);
+        border-left: 8px solid rgba(43, 209, 197, 0.9);
+      }
+
+      .callout h4 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        color: var(--ink-900);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .callout ul {
+        margin: 0;
+        gap: 10px;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        flex: 1;
+        margin-top: 12px;
+      }
+
+      .kpis.kpis--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .kpis.kpis--2 .kpi strong {
+        font-size: 32px;
+      }
+
+      .kpi {
+        border-radius: 18px;
+        padding: 16px;
+        border: 1px solid rgba(17, 17, 17, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.08);
+        display: grid;
+        gap: 6px;
+        align-content: start;
+      }
+
+      .kpi strong {
+        font-size: 34px;
+        letter-spacing: -0.04em;
+        color: var(--strategy-blue-deep);
+      }
+
+      .kpi span {
+        font-size: 13px;
+        color: var(--ink-700);
+        line-height: 1.35;
+      }
+
+      .kpi--lime strong {
+        color: var(--strategy-lime-deep);
+      }
+
+      .kpi--success strong {
+        color: var(--success);
+      }
+
+      .kpi--warn strong {
+        color: var(--accent-orange);
+      }
+
+      /* Cover slide */
+      .cover {
+        background:
+          radial-gradient(
+            900px 500px at 12% 12%,
+            rgba(193, 239, 16, 0.22),
+            transparent 65%
+          ),
+          radial-gradient(
+            700px 480px at 85% 40%,
+            rgba(43, 209, 197, 0.16),
+            transparent 60%
+          ),
+          linear-gradient(135deg, var(--strategy-blue-deep), var(--strategy-blue));
+        color: var(--paper);
+      }
+
+      .cover .slide-tag {
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .cover h1,
+      .cover h3,
+      .cover p {
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .cover .slide-number {
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      .cover .muted {
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      .cover--center {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      .cover--center .cover-logos {
+        justify-content: center;
+      }
+
+      .cover-logos {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .cover-logos img {
+        height: clamp(54px, 6vw, 86px);
+        width: auto;
+        display: block;
+      }
+
+      .cover-divider {
+        width: 1px;
+        height: clamp(40px, 5vw, 70px);
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .cover-pill {
+        margin-top: 18px;
+        width: fit-content;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(193, 239, 16, 0.16);
+        border: 1px solid rgba(193, 239, 16, 0.34);
+        color: rgba(255, 255, 255, 0.94);
+        font-weight: 700;
+      }
+
+      .cover-foot {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 13px;
+      }
+
+      /* Controls */
+      .controls {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 220;
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 17, 17, 0.12);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(15, 58, 164, 0.14);
+        cursor: pointer;
+        color: var(--strategy-blue-deep);
+        font-size: 18px;
+        display: grid;
+        place-items: center;
+        transition: transform 0.15s ease, background 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        background: var(--strategy-blue);
+        border-color: rgba(255, 255, 255, 0.18);
+        color: var(--paper);
+      }
+
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Progress bar */
+      .progress {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 6px;
+        background: rgba(17, 17, 17, 0.08);
+        z-index: 210;
+      }
+
+      .progress > div {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(
+          90deg,
+          var(--strategy-lime),
+          var(--accent-teal),
+          var(--strategy-blue)
+        );
+        transition: width 0.28s ease;
+      }
+
+      @media (max-width: 1000px) {
+        .slide {
+          width: 94vw;
+          height: 86vh;
+          padding: 26px 22px;
+          overflow: auto;
+        }
+        .deck-slide-title {
+          display: none;
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .grid-2,
+        .callouts {
+          grid-template-columns: 1fr;
+        }
+        .diagram {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+        .diagram-arrow {
+          display: none;
+        }
+        .kpis {
+          grid-template-columns: 1fr 1fr;
+        }
+        table {
+          min-width: 740px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .slide,
+        li,
+        .progress > div {
+          transition: none !important;
+        }
+      }
+
+      @media print {
+        body {
+          background: #ffffff;
+          overflow: visible;
+        }
+        .deck-header,
+        .controls,
+        .progress {
+          display: none !important;
+        }
+        .deck-container {
+          height: auto;
+          margin: 0;
+          padding: 0;
+          display: block;
+        }
+        .slide {
+          position: relative;
+          opacity: 1 !important;
+          transform: none !important;
+          pointer-events: auto !important;
+          width: 100% !important;
+          height: auto !important;
+          max-height: none !important;
+          border-radius: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+        .notes {
+          display: block !important;
+        }
+      }
+      /* STYLES:END */
+    </style>
+  </head>
+  <body>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <symbol id="i-arrow-right" viewBox="0 0 24 24">
+        <path
+          d="M5 12h14M13 5l7 7-7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-database" viewBox="0 0 24 24">
+        <ellipse
+          cx="12"
+          cy="5"
+          rx="7"
+          ry="3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-web" viewBox="0 0 24 24">
+        <path
+          d="M4 5h16v14H4z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M4 9h16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M8 13h8M8 16h5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-app" viewBox="0 0 24 24">
+        <path
+          d="M5 4h14v16H5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M8 8h8M8 12h8M8 16h6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-table" viewBox="0 0 24 24">
+        <path
+          d="M4 6h16v12H4z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M4 10h16M8 6v12M16 6v12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24">
+        <path
+          d="M13 2L3 14h7l-1 8 10-12h-7z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-users" viewBox="0 0 24 24">
+        <path
+          d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm-8 1a3 3 0 1 0-3-3 3 3 0 0 0 3 3Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M20 20v-1a4 4 0 0 0-4-4h-1M4 20v-1a4 4 0 0 1 4-4h1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-link" viewBox="0 0 24 24">
+        <path
+          d="M10 13a5 5 0 0 1 0-7l1-1a5 5 0 0 1 7 7l-1 1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M14 11a5 5 0 0 1 0 7l-1 1a5 5 0 1 1-7-7l1-1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path
+          d="M12 2l8 4v6c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M9 12l2 2 4-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path
+          d="M12 3l10 18H2z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M12 9v5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M12 17h.01"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-repeat" viewBox="0 0 24 24">
+        <path
+          d="M17 2l4 4-4 4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M3 11V9a5 5 0 0 1 5-5h13"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M7 22l-4-4 4-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M21 13v2a5 5 0 0 1-5 5H3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-life" viewBox="0 0 24 24">
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <circle
+          cx="12"
+          cy="12"
+          r="3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M12 3v2M12 19v2M3 12h2M19 12h2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path
+          d="M12 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M19.4 15a7.7 7.7 0 0 0 .1-1l2-1.2-2-3.4-2.3.6a7.9 7.9 0 0 0-1.7-1L13 6H11L9.5 8.9a7.9 7.9 0 0 0-1.7 1L5.5 9.3l-2 3.4 2 1.2a7.7 7.7 0 0 0 0 2l-2 1.2 2 3.4 2.3-.6a7.9 7.9 0 0 0 1.7 1L11 22h2l1.5-2.9a7.9 7.9 0 0 0 1.7-1l2.3.6 2-3.4-2-1.2Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24">
+        <path
+          d="M4 4h16v16H4z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M4 10h16M10 4v16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-clipboard" viewBox="0 0 24 24">
+        <path
+          d="M9 3h6l1 2h3v16H5V5h3z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M9 3v3h6V3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M8 11h8M8 15h6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-checklist" viewBox="0 0 24 24">
+        <path
+          d="M4 6h2l1 1 2-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M4 12h2l1 1 2-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M4 18h2l1 1 2-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M11 6h9M11 12h9M11 18h9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+        <path
+          d="M7 3v2M17 3v2M4 7h16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M5 5h14v16H5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M8 11h3M13 11h3M8 15h3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-rocket" viewBox="0 0 24 24">
+        <path
+          d="M5 14c3.5 0 7-3.5 7-7 0-1.1.2-2.3.6-3.5C16.2 3.8 20 7.8 20 12c0 3.5-3.5 7-7 7H7l-2 2v-6Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M12 8h.01"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path
+          d="M4 7h16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M10 3h4l1 2H9z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M6 7l1 14h10l1-14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M10 11v6M14 11v6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24">
+        <path
+          d="M3 12l9 9 9-9-9-9H7L3 7z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M7.5 7.5h.01"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-sharepoint" viewBox="0 0 24 24">
+        <path
+          d="M8 7a3 3 0 1 0 0 .01Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M16 6a3 3 0 1 0 0 .01Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M16 18a3 3 0 1 0 0 .01Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M10.5 8l3-1M10 10l4 6M14.5 16l-3-1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+    </svg>
+    <header class="deck-header">
+      <div class="deck-brand">
+        <img
+          class="deck-logo"
+          src="frontend/src/assets/strategy-logo.png"
+          alt="Strategy"
+        />
+        <span class="deck-divider" aria-hidden="true"></span>
+        <div class="deck-title">
+          <strong>TimeNator</strong>
+          <span>Migración V2 → V3</span>
+        </div>
+      </div>
+      <div class="deck-status">
+        <div class="deck-slide-title" id="deckSlideTitle"></div>
+        <div class="deck-chip" id="deckCounter"><i></i> 1 / 13</div>
+      </div>
+    </header>
+
+    <main class="deck-container" id="deck" aria-label="Presentación">
+      <!-- SLIDES:START -->
+      <!-- Slide 1: Portada -->
+      <section class="slide cover active" data-title="Portada">
+        <div class="slide-tag">Contexto y decisión</div>
+        <div class="cover-logos">
+          <img
+            src="frontend/src/assets/strategy-logo.png"
+            alt="Strategy"
+            loading="eager"
+          />
+          <span class="cover-divider" aria-hidden="true"></span>
+          <img
+            src="frontend/src/assets/Timenator Blanco.png"
+            alt="TimeNator"
+            loading="eager"
+          />
+        </div>
+        <h1>Migración TimeNator V2 → V3</h1>
+        <h3>De Power Apps a una plataforma web con datos centralizados</h3>
+        <p>
+          Objetivo: reducir el riesgo operativo (pérdida de registros), mejorar la
+          gobernanza del dato y habilitar escalabilidad para el crecimiento.
+        </p>
+        <div class="cover-pill">Dataverse + Entra ID (MSAL) + Graph + n8n</div>
+        <div class="cover-foot">
+          <span>Versión: 2026-02-03 (repo local)</span>
+          <span class="muted">Controles: ← → · Space · F · N</span>
+        </div>
+        <div class="slide-number">1 / 13</div>
+      </section>
+
+      <!-- Slide 2: Restricciones -->
+      <section class="slide" data-title="Restricciones actuales (V2)">
+        <div class="slide-tag">Arrancamos por restricciones</div>
+        <h2>Restricciones actuales (V2)</h2>
+        <h3>Por qué duele hoy (y por qué importa)</h3>
+        <div class="grid-2">
+          <div>
+            <ul>
+          <li>
+            <strong>Techo de consulta:</strong> límites prácticos por conector (en
+            documentación V2 se reporta <code>MaxGetRowsCount = 2000</code>) → riesgo
+            de reportes incompletos.
+          </li>
+          <li>
+            <strong>Complejidad acumulada:</strong> V2 tiene 7 pantallas, 22 fuentes de
+            datos y cientos de controles (export de documentación) → mantenimiento
+            lento y frágil.
+          </li>
+          <li>
+            <strong>Datos fragmentados:</strong> SharePoint + Excel + conectores +
+            flujos → inconsistencia y reproceso.
+          </li>
+          <li>
+            <strong>Operación crítica en flujos:</strong> creación, duplicación,
+            eliminación y edición masiva dependen de automatizaciones externas →
+            difícil trazabilidad y diagnóstico.
+          </li>
+          <li>
+            <strong>Catálogos sin gobierno:</strong> cubos/etiquetas por área en listas
+            separadas → faltantes, duplicados y clasificación errónea.
+          </li>
+            </ul>
+          </div>
+          <div>
+            <div
+              class="diagram"
+              role="img"
+              aria-label="Diagrama: datos fragmentados en V2 vs centralizados en V3"
+            >
+              <div class="diagram-col">
+                <div class="diagram-title">V2 (fragmentado)</div>
+                <div class="diagram-stack">
+                  <div class="node node--blue">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-sharepoint"></use>
+                    </svg>
+                    SharePoint
+                  </div>
+                  <div class="node node--warn">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-table"></use>
+                    </svg>
+                    Excel (horas máximas)
+                  </div>
+                  <div class="node node--teal">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-bolt"></use>
+                    </svg>
+                    Flujos (Power Automate)
+                  </div>
+                  <div class="node">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-app"></use>
+                    </svg>
+                    Power Apps Canvas
+                  </div>
+                </div>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-arrow-right"></use>
+                </svg>
+              </div>
+              <div class="diagram-col">
+                <div class="diagram-title">V3 (centralizado)</div>
+                <div class="diagram-stack">
+                  <div class="node node--lime">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-database"></use>
+                    </svg>
+                    Dataverse (fuente única)
+                  </div>
+                  <div class="node node--blue">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-web"></use>
+                    </svg>
+                    Web (Vite/React)
+                  </div>
+                  <div class="node node--teal">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-users"></use>
+                    </svg>
+                    Microsoft Graph (usuarios)
+                  </div>
+                  <div class="node node--warn">
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-link"></use>
+                    </svg>
+                    n8n (notificaciones)
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="muted" style="margin-top: 12px; font-size: 13px">
+              La diferencia clave: pasar de “varias fuentes + automatizaciones” a una
+              <strong>fuente única</strong> con gobernanza y trazabilidad.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          Si el sistema no puede leer todo el universo de datos, el negocio toma
+          decisiones con “fotografías parciales”. Hoy estamos en un punto donde el
+          riesgo ya se materializó (se borran registros).
+        </aside>
+        <div class="slide-number">2 / 13</div>
+      </section>
+
+      <!-- Slide 3: Impacto -->
+      <section class="slide" data-title="Impacto actual">
+        <div class="slide-tag">Impacto en el negocio</div>
+        <h2>Impacto actual</h2>
+        <h3>Costos, riesgo y confianza en los datos</h3>
+        <div class="grid-2">
+          <div>
+            <ul>
+          <li>
+            <span class="hl-danger">Pérdida de registros (confirmado):</span> afecta
+            trazabilidad, seguimiento y confianza.
+          </li>
+          <li>
+            <strong>Riesgo de auditoría:</strong> no siempre es claro quién cambió qué,
+            cuándo y por qué (punto crítico para control).
+          </li>
+          <li>
+            <strong>Reproceso operativo:</strong> etiquetas/catálogos faltantes →
+            clasificación manual, reportes inconsistentes y tiempo perdido
+            (<span class="hl-warn">TBD</span> con métricas reales).
+          </li>
+          <li>
+            <strong>Experiencia de usuario:</strong> fricción y lentitud en picos de
+            uso → baja adopción y más soporte.
+          </li>
+            </ul>
+          </div>
+          <div
+            class="bars"
+            role="img"
+            aria-label="Indicadores visuales del impacto (estimación, ajustar con métricas reales)"
+          >
+            <div class="bars-head">
+              <strong>Mapa de impacto (estimación)</strong>
+              <span>TBD con métricas reales</span>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--danger" aria-hidden="true">
+                  <use href="#i-alert"></use>
+                </svg>
+                <span>Riesgo por pérdida</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill bar-fill--warn" style="width: 92%"></div>
+              </div>
+              <div class="bar-value">Alto</div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--warn" aria-hidden="true">
+                  <use href="#i-repeat"></use>
+                </svg>
+                <span>Reproceso</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill bar-fill--warn" style="width: 78%"></div>
+              </div>
+              <div class="bar-value">Medio/Alto</div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--blue" aria-hidden="true">
+                  <use href="#i-shield"></use>
+                </svg>
+                <span>Riesgo de auditoría</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 86%"></div>
+              </div>
+              <div class="bar-value">Alto</div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--teal" aria-hidden="true">
+                  <use href="#i-life"></use>
+                </svg>
+                <span>Soporte / fricción</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 66%"></div>
+              </div>
+              <div class="bar-value">Medio</div>
+            </div>
+
+            <p class="muted" style="margin-top: 6px; font-size: 12px">
+              Nota: esta visual es orientativa para la conversación; reemplazar
+              porcentajes por datos reales cuando estén disponibles.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          El problema no es “tecnología”, es confianza: si un registro desaparece,
+          perdemos la historia y la posibilidad de explicar resultados.
+        </aside>
+        <div class="slide-number">3 / 13</div>
+      </section>
+
+      <!-- Slide 4: Por qué migrar -->
+      <section class="slide" data-title="Por qué migrar ahora">
+        <div class="slide-tag">Decisión y timing</div>
+        <h2>Por qué migrar ahora</h2>
+        <h3>Evitar que el riesgo crezca y capitalizar el avance actual</h3>
+        <div class="grid-2">
+          <div>
+            <ul>
+          <li>
+            <strong>El riesgo ya es real:</strong> “se borran registros” requiere control
+            y política de retención.
+          </li>
+          <li>
+            <strong>Gobernanza y seguridad:</strong> Entra ID + Dataverse habilita permisos,
+            auditoría y control del dato.
+          </li>
+          <li>
+            <strong>V3 ya tiene base implementada:</strong> módulos web, rutas claras, panel
+            Admin e integraciones (Graph + n8n).
+          </li>
+          <li>
+            <strong>Costo de no migrar:</strong> cada semana se acumula deuda operativa
+            (soporte, correcciones, inconsistencias) y aumenta el impacto.
+          </li>
+            </ul>
+          </div>
+          <div
+            class="bars"
+            role="img"
+            aria-label="Gráfica conceptual: riesgo acumulado si postergamos la migración"
+          >
+            <div class="bars-head">
+              <strong>Riesgo acumulado si postergamos</strong>
+              <span>tendencia</span>
+            </div>
+            <svg class="spark" viewBox="0 0 320 170" aria-hidden="true">
+              <defs>
+                <linearGradient id="gRisk" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="rgba(255,154,61,0.0)" />
+                  <stop offset="100%" stop-color="rgba(255,154,61,0.22)" />
+                </linearGradient>
+              </defs>
+              <line class="grid" x1="24" y1="140" x2="312" y2="140"></line>
+              <line class="grid" x1="24" y1="100" x2="312" y2="100"></line>
+              <line class="grid" x1="24" y1="60" x2="312" y2="60"></line>
+              <path
+                class="area"
+                d="M24 140 L80 128 L136 112 L192 90 L248 62 L312 34 L312 140 Z"
+                fill="url(#gRisk)"
+              ></path>
+              <path class="line" d="M24 140 L80 128 L136 112 L192 90 L248 62 L312 34"></path>
+              <circle class="dot" cx="24" cy="140" r="5"></circle>
+              <circle class="dot" cx="312" cy="34" r="5"></circle>
+              <text x="24" y="158">Hoy</text>
+              <text x="128" y="158">+4 sem</text>
+              <text x="232" y="158">+8 sem</text>
+              <text x="246" y="52">Riesgo ↑</text>
+            </svg>
+            <div class="flow" aria-hidden="true">
+              <span class="flow-pill flow-pill--warn">
+                <svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg>
+                Incidentes
+              </span>
+              <svg class="flow-arrow" aria-hidden="true">
+                <use href="#i-arrow-right"></use>
+              </svg>
+              <span class="flow-pill">
+                <svg class="icon" aria-hidden="true"><use href="#i-repeat"></use></svg>
+                Reproceso
+              </span>
+              <svg class="flow-arrow" aria-hidden="true">
+                <use href="#i-arrow-right"></use>
+              </svg>
+              <span class="flow-pill flow-pill--lime">
+                <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+                Gobernanza (V3)
+              </span>
+            </div>
+            <p class="muted" style="margin-top: 6px; font-size: 12px">
+              Visual conceptual (TBD con métricas reales). Muestra por qué el momento es ahora.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          Migrar ahora reduce el “costo total” del problema: evitamos seguir arreglando
+          síntomas y pasamos a resolver la causa (gobernanza + fuente única).
+        </aside>
+        <div class="slide-number">4 / 13</div>
+      </section>
+
+      <!-- Slide 5: Beneficios -->
+      <section class="slide" data-title="Qué obtenemos con V3">
+        <div class="slide-tag">Beneficios concretos</div>
+        <h2>Qué obtenemos con TimeNator V3</h2>
+        <h3>Una plataforma para operar y crecer (no solo “registrar horas”)</h3>
+        <div class="grid-2">
+          <div>
+            <div class="cards cards--2" role="list">
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-database"></use></svg>
+              Fuente única
+            </div>
+            <h4>Dataverse como “single source of truth”</h4>
+            <p>Registros, horas máximas y catálogos centralizados.</p>
+          </div>
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+              Acceso seguro
+            </div>
+            <h4>Login Microsoft (Entra ID / MSAL)</h4>
+            <p>Control de acceso antes de ver módulos y datos.</p>
+          </div>
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+              Operación
+            </div>
+            <h4>Panel Admin</h4>
+            <p>Catálogos, usuarios activos, horas máximas y n8n.</p>
+          </div>
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-link"></use></svg>
+              Integraciones
+            </div>
+            <h4>Graph + n8n</h4>
+            <p>Usuarios/fotos (Graph) y notificaciones automatizadas (n8n).</p>
+          </div>
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg>
+              UX
+            </div>
+            <h4>Módulos claros</h4>
+            <p>Dashboard, Tareas, Reporte, Cierre semanal, Gestión del tiempo.</p>
+          </div>
+          <div class="card" role="listitem">
+            <div class="badge">
+              <svg class="icon" aria-hidden="true"><use href="#i-clipboard"></use></svg>
+              Gobernanza
+            </div>
+            <h4>Auditoría + políticas</h4>
+            <p>Base para trazabilidad, permisos, retención y recuperación.</p>
+          </div>
+            </div>
+          </div>
+          <div class="bars" role="img" aria-label="Diagrama de arquitectura de TimeNator V3">
+            <div class="bars-head">
+              <strong>Arquitectura V3 (alto nivel)</strong>
+              <span>capas</span>
+            </div>
+            <div class="diagram-stack" aria-hidden="true">
+              <div class="node node--blue">
+                <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+                Entra ID (MSAL)
+              </div>
+              <div class="node node--blue">
+                <svg class="icon" aria-hidden="true"><use href="#i-web"></use></svg>
+                Web SPA (Vite/React)
+              </div>
+              <div class="node node--lime">
+                <svg class="icon" aria-hidden="true"><use href="#i-database"></use></svg>
+                Dataverse (datos)
+              </div>
+              <div class="node node--teal">
+                <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+                Graph (usuarios)
+              </div>
+              <div class="node node--warn">
+                <svg class="icon" aria-hidden="true"><use href="#i-link"></use></svg>
+                n8n (notificaciones)
+              </div>
+            </div>
+            <div class="chips" aria-label="Módulos clave (V3)">
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg>
+                Dashboard
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-clipboard"></use></svg>
+                Tareas
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg>
+                Reporte
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-checklist"></use></svg>
+                Cierre semanal
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-life"></use></svg>
+                Gestión del tiempo
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+                Admin
+              </span>
+            </div>
+            <p class="muted" style="margin-top: 10px; font-size: 12px">
+              Visual: qué compone V3 y cómo se conecta.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          V3 no es “una pantalla nueva”: es un cambio de arquitectura para que el dato
+          sea confiable, operable y auditable.
+        </aside>
+        <div class="slide-number">5 / 13</div>
+      </section>
+
+      <!-- Slide 6: Problema -> solución -->
+      <section class="slide" data-title="Cómo V3 soluciona problemas actuales">
+        <div class="slide-tag">Problema → solución → resultado</div>
+        <h2>Cómo V3 soluciona problemas actuales</h2>
+        <h3>Mapeo directo para que el negocio vea el “antes/después”</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 30%">Problema (V2)</th>
+                <th style="width: 44%">Solución (V3)</th>
+                <th style="width: 26%">Resultado esperado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <svg class="icon icon--danger" aria-hidden="true"><use href="#i-trash"></use></svg>
+                  Se borran registros
+                </td>
+                <td>Política de retención + soft-delete + auditoría + backups/restore</td>
+                <td><span class="hl-success">Trazabilidad + recuperación</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <svg class="icon icon--warn" aria-hidden="true"><use href="#i-tag"></use></svg>
+                  Faltan etiquetas/catálogos
+                </td>
+                <td>Catálogo único en Dataverse + gobierno (dueño) + validaciones</td>
+                <td>Reportes consistentes</td>
+              </tr>
+              <tr>
+                <td>
+                  <svg class="icon icon--warn" aria-hidden="true"><use href="#i-table"></use></svg>
+                  Excel como parte crítica
+                </td>
+                <td>Horas máximas por semana en Dataverse editable desde Admin</td>
+                <td>Menos errores y reproceso</td>
+              </tr>
+              <tr>
+                <td>
+                  <svg class="icon icon--blue" aria-hidden="true"><use href="#i-app"></use></svg>
+                  Límites/fragmentación de consulta
+                </td>
+                <td>Acceso directo vía Dataverse Web API</td>
+                <td>Escalabilidad y estabilidad</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          El mensaje clave: no se trata de “mejor UI”, sino de control del dato
+          (retención, catálogo, auditoría) y operación sostenible.
+        </aside>
+        <div class="slide-number">6 / 13</div>
+      </section>
+
+      <!-- Slide 7: Temas sensibles -->
+      <section class="slide" data-title="Temas sensibles">
+        <div class="slide-tag">Temas sensibles (obligatorio)</div>
+        <h2>Integridad y control</h2>
+        <h3>Resolver lo que hoy genera riesgo: borrado + etiquetas</h3>
+        <div class="callouts">
+          <div class="callout callout--warn">
+            <h4>
+              <svg class="icon icon--warn" aria-hidden="true"><use href="#i-shield"></use></svg>
+              Política anti-pérdida (borrado de registros)
+            </h4>
+            <ul>
+              <li><strong>Soft-delete:</strong> archivar/inactivar en vez de borrar.</li>
+              <li><strong>DELETE real:</strong> solo admins o proceso controlado.</li>
+              <li><strong>Auditoría:</strong> quién/cuándo/qué cambió.</li>
+              <li><strong>Recuperación:</strong> backups/restore + procedimiento.</li>
+            </ul>
+            <div class="flow" aria-hidden="true">
+              <span class="flow-pill flow-pill--warn">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+                Borrado
+              </span>
+              <svg class="flow-arrow" aria-hidden="true">
+                <use href="#i-arrow-right"></use>
+              </svg>
+              <span class="flow-pill">
+                <svg class="icon" aria-hidden="true"><use href="#i-clipboard"></use></svg>
+                Auditoría
+              </span>
+              <svg class="flow-arrow" aria-hidden="true">
+                <use href="#i-arrow-right"></use>
+              </svg>
+              <span class="flow-pill flow-pill--lime">
+                <svg class="icon" aria-hidden="true"><use href="#i-database"></use></svg>
+                Recuperación
+              </span>
+            </div>
+          </div>
+          <div class="callout callout--info">
+            <h4>
+              <svg class="icon icon--teal" aria-hidden="true"><use href="#i-tag"></use></svg>
+              Gobierno de catálogos (etiquetas/cubos)
+            </h4>
+            <ul>
+              <li><strong>Catálogo único:</strong> Dataverse + Admin.</li>
+              <li><strong>Obligatoriedad:</strong> no guardar sin clasificación.</li>
+              <li><strong>Dueño del catálogo:</strong> responsable por calidad.</li>
+              <li><strong>Evitar duplicados:</strong> carga inicial saneada y reglas.</li>
+            </ul>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          Si acordamos estas dos políticas, eliminamos el riesgo más crítico y desbloqueamos
+          reportes confiables.
+        </aside>
+        <div class="slide-number">7 / 13</div>
+      </section>
+
+      <!-- Slide 8: Comparativa -->
+      <section class="slide" data-title="Comparativa V2 vs V3">
+        <div class="slide-tag">Diferencias clave</div>
+        <h2>Comparativa V2 vs V3</h2>
+        <h3>Resumen ejecutivo (qué cambia y por qué)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 22%">Dimensión</th>
+                <th style="width: 39%">TimeNator V2</th>
+                <th style="width: 39%">TimeNator V3</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Plataforma</strong></td>
+                <td>Power Apps Canvas</td>
+                <td>Web SPA (Vite + React)</td>
+              </tr>
+              <tr>
+                <td><strong>Acceso</strong></td>
+                <td>Entorno Power Apps</td>
+                <td>Entra ID (MSAL) antes de ver módulos</td>
+              </tr>
+              <tr>
+                <td><strong>Datos</strong></td>
+                <td>SharePoint + Excel + conectores</td>
+                <td><strong>Dataverse como base principal</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Horas máximas</strong></td>
+                <td>Excel (Tabla4)</td>
+                <td>Admin + Dataverse</td>
+              </tr>
+              <tr>
+                <td><strong>Catálogos</strong></td>
+                <td>Listas separadas por área</td>
+                <td>Catálogo único + gobierno + validaciones</td>
+              </tr>
+              <tr>
+                <td><strong>Edición</strong></td>
+                <td>Flujos/acciones en app</td>
+                <td>CRUD directo a Dataverse (API)</td>
+              </tr>
+              <tr>
+                <td><strong>Eliminación</strong></td>
+                <td>Eliminación por flujo</td>
+                <td>Se define política (soft-delete + roles + restore)</td>
+              </tr>
+              <tr>
+                <td><strong>Usuarios</strong></td>
+                <td>O365 Users / listas</td>
+                <td>Microsoft Graph + control de activos en Admin</td>
+              </tr>
+              <tr>
+                <td><strong>Notificaciones</strong></td>
+                <td>Power Automate</td>
+                <td>n8n (webhooks) + reglas operativas</td>
+              </tr>
+              <tr>
+                <td><strong>Soporte</strong></td>
+                <td>Ayuda + PDFs</td>
+                <td>Ayuda + guía rápida + manual + soporte integrado</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div
+          class="bars"
+          role="img"
+          aria-label="Comparación rápida por dimensiones (escala referencial)"
+        >
+          <div class="bars-head">
+            <strong>Comparación rápida (escala referencial)</strong>
+            <span>V2 vs V3</span>
+          </div>
+          <div class="compare">
+            <div class="compare-row">
+              <div class="compare-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-database"></use></svg>
+                Fuente de datos
+              </div>
+              <div class="compare-bars">
+                <div class="compare-bar">
+                  <span class="compare-name">V2</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v2" style="width: 45%"></div>
+                  </div>
+                </div>
+                <div class="compare-bar">
+                  <span class="compare-name">V3</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v3" style="width: 92%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-row">
+              <div class="compare-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-shield"></use></svg>
+                Auditoría / roles
+              </div>
+              <div class="compare-bars">
+                <div class="compare-bar">
+                  <span class="compare-name">V2</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v2" style="width: 30%"></div>
+                  </div>
+                </div>
+                <div class="compare-bar">
+                  <span class="compare-name">V3</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v3" style="width: 90%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-row">
+              <div class="compare-label">
+                <svg class="icon icon--teal" aria-hidden="true"><use href="#i-tag"></use></svg>
+                Catálogos / etiquetas
+              </div>
+              <div class="compare-bars">
+                <div class="compare-bar">
+                  <span class="compare-name">V2</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v2" style="width: 42%"></div>
+                  </div>
+                </div>
+                <div class="compare-bar">
+                  <span class="compare-name">V3</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v3" style="width: 88%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-row">
+              <div class="compare-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-settings"></use></svg>
+                Operación (Admin)
+              </div>
+              <div class="compare-bars">
+                <div class="compare-bar">
+                  <span class="compare-name">V2</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v2" style="width: 35%"></div>
+                  </div>
+                </div>
+                <div class="compare-bar">
+                  <span class="compare-name">V3</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v3" style="width: 86%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-row">
+              <div class="compare-label">
+                <svg class="icon icon--warn" aria-hidden="true"><use href="#i-link"></use></svg>
+                Integraciones
+              </div>
+              <div class="compare-bars">
+                <div class="compare-bar">
+                  <span class="compare-name">V2</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v2" style="width: 50%"></div>
+                  </div>
+                </div>
+                <div class="compare-bar">
+                  <span class="compare-name">V3</span>
+                  <div class="bar-track is-compact">
+                    <div class="bar-fill bar-fill--v3" style="width: 84%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="muted" style="margin-top: 10px; font-size: 12px">
+            Escala conceptual para explicar “diferencias”. Ajustar con datos reales si se requiere.
+          </p>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          La diferencia “ganadora” es la fuente única + gobernanza: menos dependencia de archivos
+          y flujos, más control y trazabilidad.
+        </aside>
+        <div class="slide-number">8 / 13</div>
+      </section>
+
+      <!-- Slide 9: Cómo llegamos -->
+      <section class="slide" data-title="Cómo llegamos a la solución">
+        <div class="slide-tag">Proceso (recién acá)</div>
+        <h2>Cómo llegamos a esta solución</h2>
+        <h3>De inventario a una base sólida (sin depender de “parches”)</h3>
+        <div class="grid-2">
+          <div>
+            <div class="timeline" aria-label="Línea de tiempo del proceso">
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Inventario V2</strong>
+                  <span>Pantallas, fuentes, flujos y campos críticos.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Decisión de arquitectura</strong>
+                  <span>Web + Dataverse para centralizar y gobernar el dato.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Implementación base</strong>
+                  <span>Login MSAL + módulos + navegación por rutas.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Integraciones</strong>
+                  <span>Graph (usuarios) + n8n (notificaciones).</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Paridad funcional</strong>
+                  <span>Validar que V3 cubra el flujo operativo semanal.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bars" role="img" aria-label="Estado actual de V3 y foco del siguiente paso">
+            <div class="bars-head">
+              <strong>Estado actual V3</strong>
+              <span>módulos</span>
+            </div>
+            <div class="chips" aria-hidden="true">
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+                Login MSAL
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-layout"></use></svg>
+                Dashboard
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-clipboard"></use></svg>
+                Tareas
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg>
+                Reporte
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-checklist"></use></svg>
+                Cierre semanal
+              </span>
+              <span class="chip">
+                <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+                Admin
+              </span>
+            </div>
+            <div class="flow" aria-hidden="true">
+              <span class="flow-pill">
+                <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+                Identidad
+              </span>
+              <svg class="flow-arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill flow-pill--lime">
+                <svg class="icon" aria-hidden="true"><use href="#i-database"></use></svg>
+                Dataverse
+              </span>
+              <svg class="flow-arrow" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill">
+                <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+                Operación
+              </span>
+            </div>
+            <p class="muted" style="margin-top: 6px; font-size: 12px">
+              Foco siguiente: gobierno (retención, catálogos) + métricas de éxito.
+            </p>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          La migración es la consecuencia de un diagnóstico: el problema es el dato fragmentado y
+          la falta de gobernanza, no solo la interfaz.
+        </aside>
+        <div class="slide-number">9 / 13</div>
+      </section>
+
+      <!-- Slide 10: Plan -->
+      <section class="slide" data-title="Plan de migración">
+        <div class="slide-tag">Plan (propuesta)</div>
+        <h2>Plan de migración</h2>
+        <h3>Fases claras + validación + rollback</h3>
+        <div class="grid-2">
+          <div>
+            <div class="timeline" aria-label="Fases del plan de migración">
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Fase 1 — Inventario</strong>
+                  <span>Mapeo final de tablas/campos/roles.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Fase 2 — Dataverse</strong>
+                  <span>Permisos, auditoría, catálogos y horas máximas.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Fase 3 — Migración</strong>
+                  <span>Export/import + reconciliación (totales).</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Fase 4 — Piloto</strong>
+                  <span>Usuarios clave + ajustes rápidos.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-dot" aria-hidden="true"></div>
+                <div class="step-card">
+                  <strong>Fase 5 — Corte</strong>
+                  <span>Congelar V2, migración final y Go-Live.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="badge">
+                <svg class="icon" aria-hidden="true"><use href="#i-checklist"></use></svg>
+                Checklist del corte
+              </div>
+              <p>
+                <strong>Validación:</strong> reportes consistentes vs V2 durante piloto.<br />
+                <strong>Seguridad:</strong> pruebas de roles/permiso (Admin vs usuario).<br />
+                <strong>Rollback:</strong> procedimiento y ventana de reversa (<span class="hl-warn">TBD</span>).<br />
+                <strong>Comunicación:</strong> guías + soporte para adopción.
+              </p>
+            </div>
+            <div class="card" style="margin-top: 14px">
+              <div class="badge">
+                <svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg>
+                Fechas
+              </div>
+              <p>
+                Propuesta de fechas: <span class="hl-warn">TBD</span> (definir en la reunión).
+                Recomendación: piloto corto y controlado antes de corte final.
+              </p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          El plan reduce riesgo: validamos con datos reales, definimos rollback y recién después
+          hacemos el corte.
+        </aside>
+        <div class="slide-number">10 / 13</div>
+      </section>
+
+      <!-- Slide 11: Riesgos -->
+      <section class="slide" data-title="Riesgos y mitigaciones">
+        <div class="slide-tag">Riesgos (y cómo los controlamos)</div>
+        <h2>Riesgos y mitigaciones</h2>
+        <h3>Enfoque preventivo (no reactivo)</h3>
+        <div class="grid-2">
+          <div>
+            <ul>
+              <li>
+                <strong>Borrado/pérdida de datos:</strong> soft-delete + auditoría + backups/restore +
+                roles → <span class="hl-success">recuperación controlada</span>.
+              </li>
+              <li>
+                <strong>Inconsistencia al migrar:</strong> reglas de mapeo + pruebas de reconciliación
+                (totales por semana/usuario) → migración confiable.
+              </li>
+              <li>
+                <strong>Permisos (Dataverse/Graph):</strong> pruebas por rol y por módulo + aprobación
+                admin → acceso correcto.
+              </li>
+              <li>
+                <strong>Adopción:</strong> guía rápida, manual, soporte y piloto con usuarios clave → menor
+                resistencia al cambio.
+              </li>
+            </ul>
+            <div class="flow" aria-label="Flujo de control de riesgos">
+              <span class="flow-pill"
+                ><svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg> Detectar</span
+              >
+              <svg class="icon icon--blue" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill flow-pill--warn"
+                ><svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg> Mitigar</span
+              >
+              <svg class="icon icon--blue" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill flow-pill--lime"
+                ><svg class="icon" aria-hidden="true"><use href="#i-checklist"></use></svg> Medir</span
+              >
+            </div>
+          </div>
+          <div class="matrix-card" aria-label="Matriz de riesgo">
+            <div class="bars-head">
+              <strong>Matriz de riesgo</strong>
+              <span>Probabilidad × Impacto</span>
+            </div>
+            <svg
+              class="matrix"
+              viewBox="0 0 480 320"
+              role="img"
+              aria-labelledby="riskMatrixTitle riskMatrixDesc"
+            >
+              <title id="riskMatrixTitle">Matriz de riesgo</title>
+              <desc id="riskMatrixDesc">
+                Mapa de riesgos por probabilidad e impacto, con cuatro puntos priorizados.
+              </desc>
+
+              <!-- Heat areas -->
+              <rect x="60" y="40" width="152" height="88" fill="rgba(255,154,61,0.08)"></rect>
+              <rect x="212" y="40" width="228" height="132" fill="rgba(217,44,44,0.08)"></rect>
+              <rect x="60" y="128" width="152" height="132" fill="rgba(43,209,197,0.10)"></rect>
+              <rect x="212" y="172" width="228" height="88" fill="rgba(255,154,61,0.06)"></rect>
+
+              <!-- Grid -->
+              <g class="grid" aria-hidden="true">
+                <line x1="60" y1="40" x2="60" y2="260"></line>
+                <line x1="136" y1="40" x2="136" y2="260"></line>
+                <line x1="212" y1="40" x2="212" y2="260"></line>
+                <line x1="288" y1="40" x2="288" y2="260"></line>
+                <line x1="364" y1="40" x2="364" y2="260"></line>
+                <line x1="440" y1="40" x2="440" y2="260"></line>
+
+                <line x1="60" y1="40" x2="440" y2="40"></line>
+                <line x1="60" y1="84" x2="440" y2="84"></line>
+                <line x1="60" y1="128" x2="440" y2="128"></line>
+                <line x1="60" y1="172" x2="440" y2="172"></line>
+                <line x1="60" y1="216" x2="440" y2="216"></line>
+                <line x1="60" y1="260" x2="440" y2="260"></line>
+              </g>
+
+              <!-- Axis -->
+              <line class="axis" x1="60" y1="260" x2="440" y2="260"></line>
+              <line class="axis" x1="60" y1="40" x2="60" y2="260"></line>
+
+              <text x="250" y="295" text-anchor="middle">Probabilidad</text>
+              <text x="60" y="278" text-anchor="start">Baja</text>
+              <text x="440" y="278" text-anchor="end">Alta</text>
+
+              <text x="22" y="150" text-anchor="middle" transform="rotate(-90 22 150)">
+                Impacto
+              </text>
+              <text x="62" y="54" text-anchor="start">Alto</text>
+              <text x="62" y="255" text-anchor="start">Bajo</text>
+
+              <!-- Points -->
+              <g aria-hidden="true">
+                <circle class="dot dot--danger" cx="400" cy="70" r="10"></circle>
+                <text
+                  x="400"
+                  y="70"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  fill="rgba(255,255,255,0.96)"
+                  font-weight="900"
+                  font-size="12"
+                >
+                  1
+                </text>
+
+                <circle class="dot dot--warn" cx="320" cy="120" r="10"></circle>
+                <text
+                  x="320"
+                  y="120"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  fill="rgba(255,255,255,0.96)"
+                  font-weight="900"
+                  font-size="12"
+                >
+                  2
+                </text>
+
+                <circle class="dot dot--warn" cx="280" cy="170" r="10"></circle>
+                <text
+                  x="280"
+                  y="170"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  fill="rgba(255,255,255,0.96)"
+                  font-weight="900"
+                  font-size="12"
+                >
+                  3
+                </text>
+
+                <circle class="dot" cx="320" cy="230" r="10"></circle>
+                <text
+                  x="320"
+                  y="230"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  fill="rgba(255,255,255,0.96)"
+                  font-weight="900"
+                  font-size="12"
+                >
+                  4
+                </text>
+              </g>
+            </svg>
+            <div class="chips" aria-label="Leyenda de riesgos">
+              <span class="chip"
+                ><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg> 1
+                Borrado/pérdida</span
+              >
+              <span class="chip"
+                ><svg class="icon" aria-hidden="true"><use href="#i-repeat"></use></svg> 2 Migración</span
+              >
+              <span class="chip"
+                ><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg> 3 Permisos</span
+              >
+              <span class="chip"
+                ><svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg> 4 Adopción</span
+              >
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          La migración no es “tirar V2”: es un cambio controlado. Los riesgos están identificados y
+          tienen mitigación concreta.
+        </aside>
+        <div class="slide-number">11 / 13</div>
+      </section>
+
+      <!-- Slide 12: KPIs -->
+      <section class="slide" data-title="Éxito y próximos pasos">
+        <div class="slide-tag">KPIs + acción</div>
+        <h2>Criterios de éxito</h2>
+        <h3>Qué medimos para confirmar que valió la pena</h3>
+        <div class="grid-2">
+          <div>
+            <div class="kpis kpis--2">
+              <div class="kpi kpi--success">
+                <strong>0</strong>
+                <span>incidentes de pérdida de registros (objetivo)</span>
+              </div>
+              <div class="kpi kpi--lime">
+                <strong>&ge;98%</strong>
+                <span>tareas con catálogo completo (cubo/categoría)</span>
+              </div>
+              <div class="kpi kpi--warn">
+                <strong>TBD</strong>
+                <span>reducción de tickets de soporte (medir vs V2)</span>
+              </div>
+              <div class="kpi">
+                <strong>TBD</strong>
+                <span>tiempo de carga / respuesta en módulos críticos</span>
+              </div>
+            </div>
+            <div class="flow" aria-label="Cadencia de medición">
+              <span class="flow-pill"
+                ><svg class="icon" aria-hidden="true"><use href="#i-checklist"></use></svg> Piloto</span
+              >
+              <svg class="icon icon--blue" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill flow-pill--warn"
+                ><svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg> KPIs</span
+              >
+              <svg class="icon icon--blue" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+              <span class="flow-pill flow-pill--lime"
+                ><svg class="icon" aria-hidden="true"><use href="#i-rocket"></use></svg> Corte</span
+              >
+            </div>
+          </div>
+          <div class="bars" aria-label="Dashboard de KPIs">
+            <div class="bars-head">
+              <strong>Dashboard de seguimiento</strong>
+              <span>tendencia esperada</span>
+            </div>
+            <svg
+              class="spark"
+              viewBox="0 0 480 170"
+              role="img"
+              aria-labelledby="kpiSparkTitle kpiSparkDesc"
+            >
+              <title id="kpiSparkTitle">Tendencia esperada de KPIs</title>
+              <desc id="kpiSparkDesc">
+                Línea naranja representa reducción de tickets/incidentes. Línea teal representa aumento del
+                catálogo completo.
+              </desc>
+
+              <g class="grid" aria-hidden="true">
+                <line x1="40" y1="30" x2="440" y2="30"></line>
+                <line x1="40" y1="70" x2="440" y2="70"></line>
+                <line x1="40" y1="110" x2="440" y2="110"></line>
+                <line x1="40" y1="150" x2="440" y2="150"></line>
+              </g>
+
+              <path
+                class="area"
+                d="M40 60 L140 70 L240 85 L340 100 L440 110 L440 150 L40 150 Z"
+              ></path>
+              <path class="line" d="M40 60 L140 70 L240 85 L340 100 L440 110"></path>
+              <path class="line2" d="M40 125 L140 110 L240 95 L340 75 L440 55"></path>
+
+              <circle class="dot" cx="440" cy="55" r="6"></circle>
+              <text x="40" y="164" text-anchor="start">S0</text>
+              <text x="440" y="164" text-anchor="end">S4</text>
+            </svg>
+
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-alert"></use></svg>
+                <span>Incidentes (pérdida)</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill bar-fill--v3" style="width: 4%"></div>
+              </div>
+              <div class="bar-value">0</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-tag"></use></svg>
+                <span>Catálogo completo</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill bar-fill--v3" style="width: 98%"></div>
+              </div>
+              <div class="bar-value">&ge;98%</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-repeat"></use></svg>
+                <span>Tickets soporte</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill bar-fill--warn" style="width: 60%"></div>
+              </div>
+              <div class="bar-value">TBD</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">
+                <svg class="icon icon--blue" aria-hidden="true"><use href="#i-bolt"></use></svg>
+                <span>Rendimiento</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 70%"></div>
+              </div>
+              <div class="bar-value">TBD</div>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          <strong>Notas del presentador</strong>
+          Si acordamos métricas, la discusión deja de ser “opinión” y pasa a ser “resultado medible”.
+        </aside>
+        <div class="slide-number">12 / 13</div>
+      </section>
+
+      <!-- Slide 13: Gracias -->
+      <section class="slide cover cover--center" data-title="Gracias">
+        <div class="cover-logos">
+          <img src="frontend/src/assets/strategy-logo.png" alt="Strategy" loading="eager" />
+          <span class="cover-divider" aria-hidden="true"></span>
+          <img src="frontend/src/assets/Timenator Blanco.png" alt="TimeNator" loading="eager" />
+        </div>
+        <h1>Gracias</h1>
+        <h3>¿Preguntas?</h3>
+        <div class="slide-number">13 / 13</div>
+      </section>
+      <!-- SLIDES:END -->
+    </main>
+
+    <div class="controls" aria-label="Controles de navegación">
+      <button class="btn" id="prevBtn" title="Anterior (←)" aria-label="Anterior">
+        ←
+      </button>
+      <button
+        class="btn"
+        id="nextBtn"
+        title="Siguiente (→/Space)"
+        aria-label="Siguiente"
+      >
+        →
+      </button>
+      <button class="btn" id="notesBtn" title="Notas (N)" aria-label="Notas">
+        N
+      </button>
+      <button
+        class="btn"
+        id="fullscreenBtn"
+        title="Pantalla completa (F)"
+        aria-label="Pantalla completa"
+      >
+        ⛶
+      </button>
+    </div>
+
+    <div class="progress" aria-hidden="true">
+      <div id="progressBar"></div>
+    </div>
+
+    <script>
+      /* SCRIPT:START */
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const notesBtn = document.getElementById("notesBtn");
+      const fullscreenBtn = document.getElementById("fullscreenBtn");
+      const progressBar = document.getElementById("progressBar");
+      const deckCounter = document.getElementById("deckCounter");
+      const deckSlideTitle = document.getElementById("deckSlideTitle");
+
+      let currentSlide = 0;
+      const totalSlides = slides.length;
+
+      const setSlideNumbers = () => {
+        document.querySelectorAll(".slide-number").forEach((el, idx) => {
+          el.textContent = `${idx + 1} / ${totalSlides}`;
+        });
+      };
+
+      const getActiveTitle = () => {
+        const active = slides[currentSlide];
+        const explicit = active?.dataset?.title?.trim();
+        if (explicit) return explicit;
+        const heading = active?.querySelector("h1,h2");
+        return heading?.textContent?.trim() ?? "";
+      };
+
+      const updateHash = () => {
+        history.replaceState(null, "", `#slide-${currentSlide + 1}`);
+      };
+
+      const update = () => {
+        slides.forEach((slide, index) => {
+          slide.classList.remove("active", "prev");
+          if (index === currentSlide) slide.classList.add("active");
+          else if (index < currentSlide) slide.classList.add("prev");
+        });
+
+        const progress = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progress}%`;
+
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+
+        deckCounter.innerHTML = `<i></i> ${currentSlide + 1} / ${totalSlides}`;
+        deckSlideTitle.textContent = getActiveTitle();
+        updateHash();
+      };
+
+      const next = () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide += 1;
+          update();
+        }
+      };
+
+      const prev = () => {
+        if (currentSlide > 0) {
+          currentSlide -= 1;
+          update();
+        }
+      };
+
+      const toggleNotes = () => document.body.classList.toggle("show-notes");
+
+      const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+          return;
+        }
+        document.exitFullscreen?.();
+      };
+
+      const goToFromHash = () => {
+        const hash = (location.hash || "").replace("#", "").trim();
+        const match = hash.match(/^slide-(\d+)$/i);
+        if (!match) return;
+        const idx = Number(match[1]) - 1;
+        if (Number.isFinite(idx) && idx >= 0 && idx < totalSlides) {
+          currentSlide = idx;
+        }
+      };
+
+      // Buttons
+      prevBtn.addEventListener("click", prev);
+      nextBtn.addEventListener("click", next);
+      notesBtn.addEventListener("click", toggleNotes);
+      fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+      // Keyboard
+      document.addEventListener("keydown", (e) => {
+        const key = e.key;
+        if (key === "ArrowRight" || key === " " || key === "PageDown") {
+          e.preventDefault();
+          next();
+          return;
+        }
+        if (key === "ArrowLeft" || key === "PageUp") {
+          e.preventDefault();
+          prev();
+          return;
+        }
+        if (key === "Home") {
+          e.preventDefault();
+          currentSlide = 0;
+          update();
+          return;
+        }
+        if (key === "End") {
+          e.preventDefault();
+          currentSlide = totalSlides - 1;
+          update();
+          return;
+        }
+        if (key.toLowerCase() === "f") {
+          e.preventDefault();
+          toggleFullscreen();
+          return;
+        }
+        if (key.toLowerCase() === "n") {
+          e.preventDefault();
+          toggleNotes();
+        }
+      });
+
+      // Touch / swipe
+      let touchStartX = 0;
+      let touchEndX = 0;
+      document.addEventListener("touchstart", (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      });
+      document.addEventListener("touchend", (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        if (touchEndX < touchStartX - 50) next();
+        if (touchEndX > touchStartX + 50) prev();
+      });
+
+      // Init
+      setSlideNumbers();
+      goToFromHash();
+      update();
+      window.addEventListener("hashchange", () => {
+        goToFromHash();
+        update();
+      });
+      /* SCRIPT:END */
+    </script>
+  </body>
+</html>
